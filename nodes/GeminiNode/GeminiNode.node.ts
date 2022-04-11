@@ -280,37 +280,54 @@ export class GeminiNode implements INodeType {
 		let endpoint = this.getNodeParameter( 'endpoint', 1 ) as string;
 
 
-
 		//let parameters = this.getNodeParameter( 'parameters', 2 ) as string;
-		let payload = this.getNodeParameter( 'jsonPayload', 3 ) as string;
+		let payloadStr = this.getNodeParameter( 'jsonPayload', 3 ) as string;
 		const host = `https://api.${ environment == 'sandbox' ? 'sandbox.' : '' }gemini.com`;
-
-		const encodedPayload = Buffer.from( JSON.stringify( payload ) ).toString( "base64" );
-		const key = Buffer.from( credentials.apiSecret.toString(), 'hex' );
-		const sign = crypto.createHmac( 'sha384', key ).update( encodedPayload ).digest( 'hex' );
 
 		let body = {
 			"nonce": ( new Date() ).getTime(),
 			"request": endpoint
 		};
 
-		const response = await axios( {
-			method: 'POST',
-			url: `${ host }${ endpoint }`,
-			responseType: 'json',
-			data: body,
+
+		let payload = { ...body };
+
+		if ( payloadStr && payloadStr.length > 0 )
+			payload = { ...JSON.parse( payloadStr ) };
+
+		const encodedPayload = Buffer.from( JSON.stringify( payload ) ).toString( "base64" );
+		const sign = crypto.createHmac( 'sha384', credentials.apiSecret.toString() ).update( encodedPayload ).digest( 'hex' );
+
+		const response = await axios.post( `${ host }${ endpoint }`, payload, {
 			headers: {
 				'Content-Type': 'application/json',
-
 				'X-GEMINI-APIKEY': credentials.apiKey.toString(),
 				'X-GEMINI-PAYLOAD': encodedPayload,
 				'X-GEMINI-SIGNATURE': sign,
+				'Cache-Control': "no-cache"
 			}
 		} );
 
 		console.log( response );
 
-		return this.prepareOutputData( [ response.data ] );
+		if ( response && response.data && response.data instanceof Array ) {
+			for ( let index = 0; index < response.data.length; index++ ) {
+				const element = response.data[ index ];
+
+				returnData.push( {
+					json: element,
+				} );
+
+			}
+		} else if ( response && response.data ) {
+			returnData.push( {
+				json: response.data,
+			} );
+		}
+
+		return [ this.helpers.returnJsonArray( returnData ) ];
 
 	}
+
+
 }

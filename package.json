@@ -21,6 +21,7 @@
         "nodelinter": "nodelinter",
         "watch": "tsc --watch",
         "build:link:install": "npm run build && npm link && cd .. && npm link n8n-nodes-gemini && cd n8n-nodes-gemini",
+        "build:copy": "npm run build && cp -rf dist/* ../node_modules/n8n-nodes-gemini/dist/",
         "test": "jest"
     },
     "files": [
