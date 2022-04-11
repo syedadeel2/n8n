@@ -308,21 +308,15 @@ export class GeminiNode implements INodeType {
 			}
 		} );
 
-		console.log( response );
-
 		if ( response && response.data && response.data instanceof Array ) {
 			for ( let index = 0; index < response.data.length; index++ ) {
 				const element = response.data[ index ];
 
-				returnData.push( {
-					json: element,
-				} );
+				returnData.push( element );
 
 			}
 		} else if ( response && response.data ) {
-			returnData.push( {
-				json: response.data,
-			} );
+			returnData.push( response.data );
 		}
 
 		return [ this.helpers.returnJsonArray( returnData ) ];
