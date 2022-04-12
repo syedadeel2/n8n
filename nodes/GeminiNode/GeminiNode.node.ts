@@ -106,8 +106,8 @@ export class GeminiNode implements INodeType {
 						"description": "Get Available Balances"
 					},
 					{
-						"name": "v1/notionalbalances/:currency",
-						"value": "v1/notionalbalances/:currency",
+						"name": "/v1/notionalbalances/:currency",
+						"value": "/v1/notionalbalances/:currency",
 						"description": "Get Notional Balances"
 					},
 					{
@@ -228,7 +228,7 @@ export class GeminiNode implements INodeType {
 					{
 						"name": "/v1/account/transfer/:currency",
 						"value": "/v1/account/transfer/:currency",
-						"description": "Internal Transfer <a href='https://docs.gemini.com/rest-api/?shell#internal-transfers'></a>"
+						"description": "Internal Transfer"
 					},
 					{
 						"name": "/v1/roles",
@@ -245,7 +245,7 @@ export class GeminiNode implements INodeType {
 				name: 'parameters',
 				displayOptions: {
 					show: {
-						endpoint: [ '/v1/wrap/:symbol', '/v1/account/transfer/:currency', '/v1/approvedAddresses/account/:network', '/v1/approvedAddresses/:network/request', '/v1/instant/quote/:side/:symbol', 'v1/notionalbalances/:currency', '/v1/addresses/:network', '/v1/deposit/:network/newAddress', '/v1/withdraw/:currency' ]
+						endpoint: [ '/v1/wrap/:symbol', '/v1/account/transfer/:currency', '/v1/approvedAddresses/account/:network', '/v1/approvedAddresses/:network/request', '/v1/instant/quote/:side/:symbol', '/v1/notionalbalances/:currency', '/v1/addresses/:network', '/v1/deposit/:network/newAddress', '/v1/withdraw/:currency', '/v1/approvedAddresses/:network/remove' ]
 					}
 				},
 				type: 'string',
@@ -279,10 +279,31 @@ export class GeminiNode implements INodeType {
 		let environment = this.getNodeParameter( 'environment', 0 ) as string;
 		let endpoint = this.getNodeParameter( 'endpoint', 1 ) as string;
 
+		let parameters = this.getNodeParameter( 'parameters', 2, '' ) as string;
 
-		//let parameters = this.getNodeParameter( 'parameters', 2 ) as string;
 		let payloadStr = this.getNodeParameter( 'jsonPayload', 3 ) as string;
 		const host = `https://api.${ environment == 'sandbox' ? 'sandbox.' : '' }gemini.com`;
+
+		// replace all the parameters in the endpoint
+		if ( parameters && parameters.length > 0 ) {
+			const regex = /\:[a-zA-Z0-9]+/gm;
+			const matches = endpoint.match( regex );
+			if ( matches && matches.length > 0 ) {
+
+				const params = parameters.split( ',' );
+
+				if ( matches.length != params.length ) {
+					throw new NodeOperationError( this.getNode(), 'Length of parameters doesn\'t match with endpoint parameters.', { description: "Please make sure the length of the parameters matches with endpoint e.g. /v1/approvedAddresses/:network/request this endpoint have only 1 parameter :network and value(s) in parameter field should have extactly 1 value. For multiple parameters you can add multiple values in parameters field separated by comma with no spaces." } );
+				}
+
+				for ( let index = 0; index < matches.length; index++ ) {
+
+					const match = matches[ index ];
+					endpoint = endpoint.replace( match, params[ index ] );
+
+				}
+			}
+		}
 
 		let body = {
 			"nonce": ( new Date() ).getTime(),
