@@ -277,11 +277,11 @@ export class GeminiNode implements INodeType {
 		}
 
 		let environment = this.getNodeParameter( 'environment', 0 ) as string;
-		let endpoint = this.getNodeParameter( 'endpoint', 1 ) as string;
+		let endpoint = this.getNodeParameter( 'endpoint', 0 ) as string;
 
-		let parameters = this.getNodeParameter( 'parameters', 2, '' ) as string;
+		let parameters = this.getNodeParameter( 'parameters', 0, '' ) as string;
 
-		let payloadStr = this.getNodeParameter( 'jsonPayload', 3 ) as string;
+		let payloadStr = this.getNodeParameter( 'jsonPayload', 0 ) as string;
 		const host = `https://api.${ environment == 'sandbox' ? 'sandbox.' : '' }gemini.com`;
 
 		// replace all the parameters in the endpoint
@@ -314,30 +314,34 @@ export class GeminiNode implements INodeType {
 		let payload = { ...body };
 
 		if ( payloadStr && payloadStr.length > 0 )
-			payload = { ...JSON.parse( payloadStr ) };
+			payload = { ...payload, ...JSON.parse( payloadStr ) };
 
 		const encodedPayload = Buffer.from( JSON.stringify( payload ) ).toString( "base64" );
 		const sign = crypto.createHmac( 'sha384', credentials.apiSecret.toString() ).update( encodedPayload ).digest( 'hex' );
 
-		const response = await axios.post( `${ host }${ endpoint }`, payload, {
-			headers: {
-				'Content-Type': 'application/json',
-				'X-GEMINI-APIKEY': credentials.apiKey.toString(),
-				'X-GEMINI-PAYLOAD': encodedPayload,
-				'X-GEMINI-SIGNATURE': sign,
-				'Cache-Control': "no-cache"
+		try {
+			const response = await axios.post( `${ host }${ endpoint }`, payload, {
+				headers: {
+					'Content-Type': 'application/json',
+					'X-GEMINI-APIKEY': credentials.apiKey.toString(),
+					'X-GEMINI-PAYLOAD': encodedPayload,
+					'X-GEMINI-SIGNATURE': sign,
+					'Cache-Control': "no-cache"
+				}
+			} );
+
+			if ( response && response.data && response.data instanceof Array ) {
+				for ( let index = 0; index < response.data.length; index++ ) {
+					const element = response.data[ index ];
+
+					returnData.push( element );
+
+				}
+			} else if ( response && response.data ) {
+				returnData.push( response.data );
 			}
-		} );
-
-		if ( response && response.data && response.data instanceof Array ) {
-			for ( let index = 0; index < response.data.length; index++ ) {
-				const element = response.data[ index ];
-
-				returnData.push( element );
-
-			}
-		} else if ( response && response.data ) {
-			returnData.push( response.data );
+		} catch ( error: any ) {
+			throw new NodeOperationError( this.getNode(), error );
 		}
 
 		return [ this.helpers.returnJsonArray( returnData ) ];
